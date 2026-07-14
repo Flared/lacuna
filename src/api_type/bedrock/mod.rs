@@ -27,7 +27,10 @@ fn extract_model_from_path(path: &str) -> Option<String> {
     if model.is_empty() {
         return None;
     }
-    Some(model.to_owned())
+    let decoded = percent_encoding::percent_decode_str(model)
+        .decode_utf8_lossy()
+        .into_owned();
+    Some(decoded)
 }
 
 // Bedrock api url format : `/model/<model_id>/invoke[WithResponseStream]`
@@ -133,6 +136,14 @@ mod tests {
             ),
             Some("us.anthropic.claude-opus-4-5-20251101-v1:0".to_owned()),
         );
+    }
+
+    #[test]
+    fn extract_model_percent_decodes_segment() {
+        let arn =
+            "arn:aws:bedrock:us-east-1:123456789012:application-inference-profile/abcd1234567";
+        let encoded = "/model/arn%3Aaws%3Abedrock%3Aus-east-1%3A123456789012%3Aapplication-inference-profile%2Fabcd1234567/invoke";
+        assert_eq!(extract_model_from_path(encoded), Some(arn.to_owned()));
     }
 
     #[test]
