@@ -9,11 +9,11 @@ pub enum OnAbsentValue {
 pub fn permissive_match(
     patterns: &[glob::Pattern],
     value: Option<&str>,
-    absent: OnAbsentValue,
+    on_absent_value: OnAbsentValue,
 ) -> bool {
     patterns.is_empty()
         || match value {
-            None => match absent {
+            None => match on_absent_value {
                 OnAbsentValue::Allow => true,
                 OnAbsentValue::Check => patterns.iter().any(|p| p.matches("")),
             },
