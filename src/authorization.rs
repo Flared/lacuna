@@ -1,4 +1,4 @@
-use crate::matching::OnAbsent;
+use crate::matching::OnAbsentValue;
 use crate::matching::permissive_match;
 use crate::request_metadata::RequestMetadata;
 
@@ -23,13 +23,13 @@ impl Authorization {
             .map(|ua| ua.normalized.as_str());
 
         self.rules.iter().any(|rule| {
-            permissive_match(&rule.providers, Some(provider), OnAbsent::Check)
+            permissive_match(&rule.providers, Some(provider), OnAbsentValue::Check)
                 && permissive_match(
                     &rule.model_patterns,
                     request_metadata.inspected.model.as_deref(),
-                    OnAbsent::Ignore,
+                    OnAbsentValue::Allow,
                 )
-                && permissive_match(&rule.user_agents, user_agent, OnAbsent::Check)
+                && permissive_match(&rule.user_agents, user_agent, OnAbsentValue::Check)
         })
     }
 
