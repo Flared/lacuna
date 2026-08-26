@@ -8,6 +8,16 @@ pub fn permissive_match(patterns: &[glob::Pattern], value: Option<&str>) -> bool
         }
 }
 
+/// Returns true if `value` matches any of `patterns`.
+/// An absent value is a permissive match: only a present value can fail to
+/// match. Use this for attributes that not every request carries.
+pub fn match_if_present(patterns: &[glob::Pattern], value: Option<&str>) -> bool {
+    match value {
+        None => true,
+        Some(v) => permissive_match(patterns, Some(v)),
+    }
+}
+
 /// Pattern specificity as a sort key. Higher = more specific.
 /// Pattern with more literal (non-`*`) characters wins
 /// If equal, fewer `*` wildcards wins

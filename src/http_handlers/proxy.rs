@@ -593,4 +593,69 @@ mod tests {
             })
         );
     }
+    #[tokio::test]
+    async fn proxy_allows_request_without_model_when_provider_restricts_models() {
+        let addr = spawn_echo_server().await;
+
+        let mut manager = ProviderManager::new();
+        manager.add(
+            make_provider_with_model_rules(
+                "myprovider",
+                &format!("http://{addr}"),
+                Compatibility {
+                    anthropic_messages: true,
+                    ..Default::default()
+                },
+                vec![ModelRule {
+                    pattern: glob::Pattern::new("claude-*").unwrap(),
+                    rewrite: None,
+                }],
+            )
+            .await,
+        );
+
+        let app = crate::app::AppBuilder::new().manager(manager).build();
+
+        // A request that carries no model is not filtered on model.
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/myprovider/v1/models")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+
+        // A model that is present and matches is allowed.
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/myprovider/v1/messages")
+                    .header("content-type", "application/json")
+                    .body(Body::from(r#"{"model":"claude-opus-5","messages":[]}"#))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+
+        // A model that is present and does not match is still forbidden.
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/myprovider/v1/messages")
+                    .header("content-type", "application/json")
+                    .body(Body::from(r#"{"model":"gpt-4o","messages":[]}"#))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    }
 }
