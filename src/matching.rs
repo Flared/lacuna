@@ -1,21 +1,28 @@
-/// Returns true if `value` matches any of `patterns`
-/// Empty pattern list is treated as a permissive match-all.
-pub fn permissive_match(patterns: &[glob::Pattern], value: Option<&str>) -> bool {
-    patterns.is_empty()
-        || match value {
-            None => patterns.iter().any(|p| p.matches("")),
-            Some(v) => patterns.iter().any(|p| p.matches(v)),
-        }
+/// What `permissive_match` does with the patterns when the value is absent.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum OnAbsent {
+    /// The patterns are skipped when the value is absent, so only a present
+    /// value can fail. Use this for attributes that not every request
+    /// carries, such as the model, which `/v1/models` does not have.
+    Ignore,
+    /// The patterns are applied to an absent value as an empty string, so
+    /// omitting the value cannot bypass the restriction. A wildcard pattern
+    /// still accepts it.
+    Check,
 }
 
-/// Returns true if `value` matches any of `patterns`.
-/// An absent value is a permissive match: only a present value can fail to
-/// match. Use this for attributes that not every request carries.
-pub fn match_if_present(patterns: &[glob::Pattern], value: Option<&str>) -> bool {
-    match value {
-        None => true,
-        Some(v) => permissive_match(patterns, Some(v)),
-    }
+/// Returns true if `value` matches any of `patterns`
+/// Empty pattern list is treated as a permissive match-all.
+/// `absent` decides what an absent `value` means.
+pub fn permissive_match(patterns: &[glob::Pattern], value: Option<&str>, absent: OnAbsent) -> bool {
+    patterns.is_empty()
+        || match value {
+            None => match absent {
+                OnAbsent::Ignore => true,
+                OnAbsent::Check => patterns.iter().any(|p| p.matches("")),
+            },
+            Some(v) => patterns.iter().any(|p| p.matches(v)),
+        }
 }
 
 /// Pattern specificity as a sort key. Higher = more specific.
@@ -74,6 +81,34 @@ mod tests {
         value: &str,
     ) -> Option<&'a str> {
         most_specific_match(patterns, value, |p| p).map(|p| p.as_str())
+    }
+
+    #[test]
+    fn absent_value_behaviour_depends_on_absent_argument() {
+        let patterns = vec![pattern("claude-*")];
+
+        // The patterns are skipped only when asked.
+        assert!(permissive_match(&patterns, None, OnAbsent::Ignore));
+        assert!(!permissive_match(&patterns, None, OnAbsent::Check));
+
+        // A present value is unaffected by the argument.
+        assert!(permissive_match(
+            &patterns,
+            Some("claude-opus-5"),
+            OnAbsent::Check
+        ));
+        assert!(!permissive_match(
+            &patterns,
+            Some("gpt-4o"),
+            OnAbsent::Ignore
+        ));
+
+        // An empty pattern list stays permissive either way.
+        assert!(permissive_match(&[], None, OnAbsent::Check));
+
+        // `Check` matches an absent value as the empty string, so a
+        // wildcard still accepts it.
+        assert!(permissive_match(&[pattern("*")], None, OnAbsent::Check));
     }
 
     #[test]

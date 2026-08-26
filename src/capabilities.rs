@@ -1,3 +1,4 @@
+use crate::matching::OnAbsent;
 use crate::matching::permissive_match;
 use crate::model_rules::ModelRule;
 use serde::Deserialize;
@@ -43,8 +44,8 @@ impl Grant {
         provider_key: &str,
         user_agent: Option<&str>,
     ) -> bool {
-        permissive_match(&self.providers, Some(provider_key))
-            && permissive_match(&self.user_agents, user_agent)
+        permissive_match(&self.providers, Some(provider_key), OnAbsent::Check)
+            && permissive_match(&self.user_agents, user_agent, OnAbsent::Check)
     }
 }
 
