@@ -1,9 +1,22 @@
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum OnAbsentValue {
+    Allow,
+    Check,
+}
+
 /// Returns true if `value` matches any of `patterns`
 /// Empty pattern list is treated as a permissive match-all.
-pub fn permissive_match(patterns: &[glob::Pattern], value: Option<&str>) -> bool {
+pub fn permissive_match(
+    patterns: &[glob::Pattern],
+    value: Option<&str>,
+    on_absent_value: OnAbsentValue,
+) -> bool {
     patterns.is_empty()
         || match value {
-            None => patterns.iter().any(|p| p.matches("")),
+            None => match on_absent_value {
+                OnAbsentValue::Allow => true,
+                OnAbsentValue::Check => patterns.iter().any(|p| p.matches("")),
+            },
             Some(v) => patterns.iter().any(|p| p.matches(v)),
         }
 }
@@ -64,6 +77,36 @@ mod tests {
         value: &str,
     ) -> Option<&'a str> {
         most_specific_match(patterns, value, |p| p).map(|p| p.as_str())
+    }
+
+    #[test]
+    fn absent_value_is_allowed_or_checked() {
+        let patterns = vec![pattern("claude-*")];
+
+        assert!(permissive_match(&patterns, None, OnAbsentValue::Allow));
+        assert!(!permissive_match(&patterns, None, OnAbsentValue::Check));
+
+        // A present value is unaffected by the argument.
+        assert!(permissive_match(
+            &patterns,
+            Some("claude-opus-5"),
+            OnAbsentValue::Check
+        ));
+        assert!(!permissive_match(
+            &patterns,
+            Some("gpt-4o"),
+            OnAbsentValue::Allow
+        ));
+        // An empty pattern list stays permissive either way.
+        assert!(permissive_match(&[], None, OnAbsentValue::Check));
+
+        // `Check` matches an absent value as the empty string, so a wildcard
+        // still accepts it.
+        assert!(permissive_match(
+            &[pattern("*")],
+            None,
+            OnAbsentValue::Check
+        ));
     }
 
     #[test]

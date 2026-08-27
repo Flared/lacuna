@@ -1,3 +1,4 @@
+use crate::matching::OnAbsentValue;
 use crate::matching::permissive_match;
 use crate::request_metadata::RequestMetadata;
 
@@ -22,12 +23,13 @@ impl Authorization {
             .map(|ua| ua.normalized.as_str());
 
         self.rules.iter().any(|rule| {
-            permissive_match(&rule.providers, Some(provider))
+            permissive_match(&rule.providers, Some(provider), OnAbsentValue::Check)
                 && permissive_match(
                     &rule.model_patterns,
                     request_metadata.inspected.model.as_deref(),
+                    OnAbsentValue::Allow,
                 )
-                && permissive_match(&rule.user_agents, user_agent)
+                && permissive_match(&rule.user_agents, user_agent, OnAbsentValue::Check)
         })
     }
 
@@ -103,7 +105,7 @@ mod tests {
         assert!(auth.is_allowed(&metadata("provider-a", Some("claude-sonnet-4-20250514"))));
         assert!(auth.is_allowed(&metadata("provider-a", Some("gpt-4o"))));
         assert!(!auth.is_allowed(&metadata("provider-a", Some("gpt-3.5-turbo"))));
-        assert!(!auth.is_allowed(&metadata("provider-a", None)));
+        assert!(auth.is_allowed(&metadata("provider-a", None)));
 
         // Wildcard provider with Some model
         assert!(auth.is_allowed(&metadata("provider-a-1", Some("claude-opus-4-20250514"))));
@@ -114,6 +116,23 @@ mod tests {
 
         // Wrong provider
         assert!(!auth.is_allowed(&metadata("other", Some("claude-sonnet-4-20250514"))));
+    }
+
+    #[test]
+    fn test_is_allowed_without_model_skips_model_patterns() {
+        let auth = Authorization {
+            rules: vec![rule(&["provider-a"], &["claude-*"])],
+        };
+
+        // A request that carries no model is not filtered on model.
+        assert!(auth.is_allowed(&metadata("provider-a", None)));
+
+        // A model that is present must still match.
+        assert!(auth.is_allowed(&metadata("provider-a", Some("claude-opus-5"))));
+        assert!(!auth.is_allowed(&metadata("provider-a", Some("gpt-4o"))));
+
+        // Other attributes still apply when no model is present.
+        assert!(!auth.is_allowed(&metadata("provider-b", None)));
     }
 
     #[test]
