@@ -66,8 +66,10 @@ impl UserAgentExtractor {
             .collect();
 
         let defaults = vec![
-            ("claude-code", r"(?i)claude[-_]?(code|cli)"),
+            ("claude-app", r"(?i)\bClaude/[\d.]+\b.*\bElectron/"),
+            ("claude-app", r"(?i)^claude[-_]?cli/.*\blocal-agent\b"),
             ("claude-app", r"(?i)claude[-_]?app|ClaudeDesktop"),
+            ("claude-code", r"(?i)claude[-_]?(code|cli)"),
             ("cursor", r"(?i)cursor"),
             ("cline", r"(?i)cline"),
             ("aider", r"(?i)aider"),
@@ -116,10 +118,20 @@ mod tests {
         let extractor = UserAgentExtractor::new(vec![]);
         let cases = vec![
             ("claude-code/1.0.0", "claude-code"),
-            ("claude-cli/2.1.68", "claude-code"),
             ("ClaudeCode/2.1", "claude-code"),
+            ("claude-cli/2.1.68", "claude-code"),
+            (
+                "claude-cli/2.1.237 (external, local-agent, agent-sdk/0.3.237)",
+                "claude-app",
+            ),
             ("ClaudeDesktop/1.0", "claude-app"),
             ("claude-app/1.0", "claude-app"),
+            (
+                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 \
+                 (KHTML, like Gecko) Claude/1.34493.1 Chrome/148.0.7778.280 \
+                 Electron/42.9.2 Safari/537.36",
+                "claude-app",
+            ),
             ("Cursor/0.45.0", "cursor"),
             ("cline/3.2.1", "cline"),
             ("Aider/0.50.0", "aider"),
