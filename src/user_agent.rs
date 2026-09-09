@@ -68,7 +68,10 @@ impl UserAgentExtractor {
         let defaults = vec![
             ("claude-app", r"(?i)\bClaude/[\d.]+\b.*\bElectron/"),
             ("claude-app", r"(?i)^claude[-_]?cli/.*\blocal-agent\b"),
+            ("claude-app", r"(?i)\bclaude[-_]desktop[-_]3p\b"),
             ("claude-app", r"(?i)claude[-_]?app|ClaudeDesktop"),
+            // Claude Desktop use 'Bun/<version>' on '/api/hello' endpoint
+            ("claude-app", r"(?i)^Bun/"),
             ("claude-code", r"(?i)claude[-_]?(code|cli)"),
             ("cursor", r"(?i)cursor"),
             ("cline", r"(?i)cline"),
@@ -119,11 +122,16 @@ mod tests {
         let cases = vec![
             ("claude-code/1.0.0", "claude-code"),
             ("ClaudeCode/2.1", "claude-code"),
+            (
+                "claude-cli/2.1.260 (external, claude-desktop-3p, agent-sdk/0.3.260)",
+                "claude-app",
+            ),
             ("claude-cli/2.1.68", "claude-code"),
             (
                 "claude-cli/2.1.237 (external, local-agent, agent-sdk/0.3.237)",
                 "claude-app",
             ),
+            ("Bun/1.4.1", "claude-app"),
             ("ClaudeDesktop/1.0", "claude-app"),
             ("claude-app/1.0", "claude-app"),
             (
