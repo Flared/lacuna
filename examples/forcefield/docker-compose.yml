@@ -1,0 +1,35 @@
+services:
+  lacuna:
+    image: ghcr.io/flared/lacuna:latest
+    container_name: lacuna
+    command:
+      - "--config"
+      - "/opt/lacuna-config.json"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "8080"
+    ports:
+      - "${LACUNA_HOST_PORT:-8080}:8080"
+    environment:
+      # ForceField gateway reachable from inside the container.
+      # On Docker Desktop (macOS/Windows), host.docker.internal works.
+      # On Linux, replace with the host's LAN IP or the FF container name
+      # if you are running everything on the same docker network.
+      - FORCEFIELD_BASE_URL=${FORCEFIELD_BASE_URL:-http://host.docker.internal:8080}
+      - FORCEFIELD_API_KEY=${FORCEFIELD_API_KEY:?set FORCEFIELD_API_KEY in .env}
+      # Upstream provider keys (BYOK). Lacuna injects these as
+      # `Authorization: Bearer <key>` and FF forwards them straight to
+      # api.openai.com / api.anthropic.com.
+      - OPENAI_API_KEY=${OPENAI_API_KEY:?set OPENAI_API_KEY in .env}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:?set ANTHROPIC_API_KEY in .env}
+    volumes:
+      - ./lacuna-config.json:/opt/lacuna-config.json:ro
+    extra_hosts:
+      # Allow host.docker.internal on Linux too.
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5

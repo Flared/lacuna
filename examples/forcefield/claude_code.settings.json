@@ -1,0 +1,7 @@
+{
+  "apiKeyHelper": "echo '-'",
+  "env": {
+    "ANTHROPIC_BASE_URL": "https://lacuna.flare.ts.net/forcefield-anthropic/",
+    "ANTHROPIC_AUTH_TOKEN": "-"
+  }
+}

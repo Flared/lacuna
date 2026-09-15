@@ -1,0 +1,41 @@
+{
+  "lacuna": {
+    "logging": {
+      "format": "json",
+      "level": "info"
+    },
+    "identity_header": "Tailscale-User-Login"
+  },
+  "providers": {
+    "forcefield-openai": {
+      "name": "OpenAI via ForceField (BYOK)",
+      "baseurl": "${FORCEFIELD_BASE_URL}",
+      "authorization": "bearer",
+      "apikey": "${OPENAI_API_KEY}",
+      "headers": {
+        "x-api-key": "${FORCEFIELD_API_KEY}"
+      },
+      "capability": {
+        "models": ["*"]
+      },
+      "compatibility": {
+        "openai_chat": true
+      }
+    },
+    "forcefield-anthropic": {
+      "name": "Anthropic via ForceField (BYOK)",
+      "baseurl": "${FORCEFIELD_BASE_URL}",
+      "authorization": "bearer",
+      "apikey": "${ANTHROPIC_API_KEY}",
+      "headers": {
+        "x-api-key": "${FORCEFIELD_API_KEY}"
+      },
+      "capability": {
+        "models": ["claude-*"]
+      },
+      "compatibility": {
+        "anthropic_messages": true
+      }
+    }
+  }
+}
