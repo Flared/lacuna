@@ -1,4 +1,10 @@
-use super::super::{ApiTypeHandler, ResponseMetadata, ResponseMetadataInspector, StaticInspector};
+use std::collections::HashMap;
+
+use crate::inspector::protocol::ProtocolInspector;
+use crate::inspector::protocol::text::{TextBody, TextProtocol};
+
+use super::super::anthropic::parse_anthropic_json;
+use super::super::{ApiTypeHandler, Inspector, ResponseMetadata, ResponseMetadataInspector};
 
 pub struct BedrockModelInvokeJsonHandler;
 
@@ -17,11 +23,54 @@ impl ApiTypeHandler for BedrockModelInvokeJsonHandler {
             parse_token_header(headers, "x-amzn-bedrock-input-token-count").unwrap_or(None);
         let output_tokens =
             parse_token_header(headers, "x-amzn-bedrock-output-token-count").unwrap_or(None);
-        Box::new(StaticInspector::new(ResponseMetadata {
-            input_tokens,
-            output_tokens,
-            ..Default::default()
-        }))
+        let cache_read_input_tokens =
+            parse_token_header(headers, "x-amzn-bedrock-cache-read-input-token-count")
+                .unwrap_or(None);
+        let cache_creation_tokens =
+            parse_token_header(headers, "x-amzn-bedrock-cache-write-input-token-count")
+                .unwrap_or(None)
+                .filter(|tokens| *tokens > 0)
+                .map(|tokens| HashMap::from([("unknown".to_owned(), tokens)]));
+        Box::new(ProtocolInspector::new(
+            TextProtocol::new(),
+            BedrockInvokeJsonInspector {
+                header_metadata: ResponseMetadata {
+                    input_tokens,
+                    output_tokens,
+                    cache_creation_tokens,
+                    cache_read_input_tokens,
+                },
+                body_metadata: None,
+            },
+        ))
+    }
+}
+
+struct BedrockInvokeJsonInspector {
+    header_metadata: ResponseMetadata,
+    body_metadata: Option<ResponseMetadata>,
+}
+
+impl Inspector<TextBody> for BedrockInvokeJsonInspector {
+    type Output = ResponseMetadata;
+
+    fn feed(&mut self, body: TextBody) {
+        self.body_metadata = parse_anthropic_json(&body.data).ok();
+    }
+
+    fn finish(self: Box<Self>) -> Result<ResponseMetadata, anyhow::Error> {
+        let headers = self.header_metadata;
+        let Some(body) = self.body_metadata else {
+            return Ok(headers);
+        };
+        Ok(ResponseMetadata {
+            input_tokens: body.input_tokens.or(headers.input_tokens),
+            output_tokens: body.output_tokens.or(headers.output_tokens),
+            cache_creation_tokens: body.cache_creation_tokens.or(headers.cache_creation_tokens),
+            cache_read_input_tokens: body
+                .cache_read_input_tokens
+                .or(headers.cache_read_input_tokens),
+        })
     }
 }
 

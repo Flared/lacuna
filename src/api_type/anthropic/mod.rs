@@ -283,7 +283,7 @@ impl Inspector<TextBody> for AnthropicJsonInspector {
     }
 }
 
-fn parse_anthropic_json(data: &[u8]) -> Result<ResponseMetadata, anyhow::Error> {
+pub(crate) fn parse_anthropic_json(data: &[u8]) -> Result<ResponseMetadata, anyhow::Error> {
     let parsed = serde_json::from_slice::<AnthropicDataWithUsage>(data)?;
     let cache_creation_tokens = build_cache_creation_map(&parsed.usage, None);
     Ok(ResponseMetadata {
