@@ -1,6 +1,8 @@
 use super::super::{ApiTypeHandler, Inspector, ResponseMetadata, ResponseMetadataInspector};
 use crate::inspector::protocol::ProtocolInspector;
 use crate::inspector::protocol::text::{TextBody, TextProtocol};
+use crate::request_metadata::RequestInspectionMetadata;
+use async_trait::async_trait;
 use serde::Deserialize;
 
 // https://platform.openai.com/docs/api-reference/chat/object
@@ -23,9 +25,20 @@ struct OpenAiChatCompletionResponse {
 
 pub struct OpenAiChatCompletionHandler;
 
+#[async_trait]
 impl ApiTypeHandler for OpenAiChatCompletionHandler {
     fn id(&self) -> &'static str {
         "openai_chat_completion"
+    }
+
+    async fn inspect_request(
+        &self,
+        request: axum::extract::Request,
+    ) -> (
+        anyhow::Result<RequestInspectionMetadata>,
+        axum::extract::Request,
+    ) {
+        super::inspect_openai_request(request).await
     }
 
     fn response_inspector(
