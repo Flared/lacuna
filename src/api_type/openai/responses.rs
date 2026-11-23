@@ -1,6 +1,8 @@
 use super::super::{ApiTypeHandler, Inspector, ResponseMetadata, ResponseMetadataInspector};
 use crate::inspector::protocol::ProtocolInspector;
 use crate::inspector::protocol::text::{TextBody, TextProtocol};
+use crate::request_metadata::RequestInspectionMetadata;
+use async_trait::async_trait;
 use serde::Deserialize;
 
 // https://platform.openai.com/docs/api-reference/responses/object
@@ -23,9 +25,20 @@ struct OpenAiResponsesResponse {
 
 pub struct OpenAiResponsesHandler;
 
+#[async_trait]
 impl ApiTypeHandler for OpenAiResponsesHandler {
     fn id(&self) -> &'static str {
         "openai_responses"
+    }
+
+    async fn inspect_request(
+        &self,
+        request: axum::extract::Request,
+    ) -> (
+        anyhow::Result<RequestInspectionMetadata>,
+        axum::extract::Request,
+    ) {
+        super::inspect_openai_request(request).await
     }
 
     fn response_inspector(
